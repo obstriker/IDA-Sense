@@ -4,7 +4,13 @@ import idc
 from agno.tools import Toolkit
 import json
 import ida_funcs
+import ida_bytes
+import ida_segment
+import ida_kernwin
+import ida_hexrays
 from ida_kernwin import get_screen_ea
+
+# Add descriptions for each function to help the agent understand
 
 class IdaTools(Toolkit):
     def __init__(self):
@@ -12,12 +18,65 @@ class IdaTools(Toolkit):
 
         self.register(self.get_call_graph)
         self.register(self.get_function_usage)
+        self.register(self.get_address_xrefs)
         self.register(self.get_decompiled_code)
         self.register(self.search_strings)
         self.register(self.get_function_args)
         self.register(self.rename_function)
         self.register(self.get_screen_function)
         self.register(self.hex_address_to_int)
+        self.register(self.get_bytes_from_addr)
+        self.register(self.get_memory_mappings)
+
+    # TODO: suggest a better name
+    def get_bytes_from_addr(self, address: str, size: int):
+        if type(address) is str:
+            address = int(address, 16)
+            
+        data = ida_bytes.get_bytes(address, size).hex()
+        return json.dumps({"operation": "get_bytes_from", "result": data})
+
+    # TODO: add convertion to strings, to int, to hex etc..
+    # Basic utils for the agent to understand bytes
+    # it can be running python commands too.
+
+    # TODO: untested
+    def rename_local_variable(old_name, new_name):
+        widget = ida_kernwin.get_current_widget()
+        if ida_kernwin.get_widget_type(widget) == ida_kernwin.BWN_PSEUDOCODE:
+            vu = ida_hexrays.get_widget_vdui(widget)
+            if vu:
+                lvars = vu.cfunc.get_lvars()
+                for lvar in lvars:
+                    if lvar.name == old_name:
+                        if vu.rename_lvar(lvar, new_name, 1):
+                            vu.refresh_ctext()
+                            print(f"Renamed variable '{old_name}' to '{new_name}'.")
+                        else:
+                            print(f"Failed to rename variable '{old_name}' to '{new_name}'.")
+                        break
+                else:
+                    print(f"Variable '{old_name}' not found.")
+            else:
+                print("Failed to obtain vdui_t object.")
+        else:
+            print("The current widget is not a pseudocode view.")
+
+    def get_memory_mappings(self):
+        segments_list = []
+
+        # Iterate over all segments
+        for seg_start in idautils.Segments():
+            seg = ida_segment.getseg(seg_start)
+            if seg:
+                seg_obj = {
+                    "name": ida_segment.get_segm_name(seg),
+                    "start": seg.start_ea,
+                    "end": seg.end_ea,
+                    "size": seg.end_ea - seg.start_ea
+                }
+                segments_list.append(seg_obj)
+        return json.dumps({"operation": "get_memory_mappings", "result": segments_list})
 
     def hex_address_to_int(self, n: str):
         return json.dumps({"operation": "conver_hex_to_int", "result": int(n, 16)})
@@ -60,8 +119,8 @@ class IdaTools(Toolkit):
 
         return json.dumps({"operation": "get_function_usage", "result": list(set(idautils.CodeRefsTo(func_ea, 0)))})
 
-    def get_xrefs(self, ea: str):
-        """Get all cross-references (XREFs) to and from an address, excluding self-references and intra-function references."""
+    def get_address_xrefs(self, ea: str):
+        """Get all cross-references (XREFs) to and from a function, excluding self-references and intra-function references."""
         xrefs = []
         func = idaapi.get_func(ea)
         
