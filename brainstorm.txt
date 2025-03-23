@@ -1,0 +1,14 @@
+call_graph -> {result: func1->func2->func3}
+call_graph -> {result: 0x123123->0x123123->0x12789, 
+                        0x123333->0x123333->0x12789}
+get_array -> {results: { array1: ["NONE", "GET", "POST", "PUT"] }}
+
+Team agents:
+1. Feedback - gives feedback on each step of the worker agent or
+                checkout the steps of the main agent
+
+
+
+prompt for each technique?
+Techniques:
+1. read and interpret memory - array of(ptrs, callbacks, strings)l
