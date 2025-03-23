@@ -161,7 +161,7 @@ class IdaTools(Toolkit):
                 results.append((s.ea, str(s)))
         return results
 
-    def get_function_args(self, func_ea: Union[str, int]):
+    def get_function_args(self, func_ea: str):
         """Retrieve function argument count and types if available."""
         args = []
 

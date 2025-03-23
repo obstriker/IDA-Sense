@@ -23,10 +23,45 @@ or enrich your context to achieve your goal.
 use mappings to ensure if a pointer is valid
 
 example of function calling:
-get_bytes_from_addr(address=0x426540, size=4)
-hex_address_to_int(n=0c564100)
+get_bytes_from_addr(address=0x421230, size=4)
+hex_address_to_int(n="0x8564100")
 search_strings(pattern="threads")
-get_address_xrefs(0x426540)
+get_address_xrefs(0x421230)
+
+
+example of address investigation (0x12345678):
+Since it's an address I will examine it's xrefs:
+get_address_xrefs(0x12345678)
+
+I will also examine it's memory to identify what's in there
+get_bytes_from_addr(address=0x12345678, size=32)
+
+  2 Memory Inspection:
+     • The bytes retrieved from the address 0x426540 are as follows:
+
+        0c 56 41 00 2c 56 41 00 30 56 41 00 38 56 41 00
+        40 56 41 00 24 56 41 00 00 00 00 00 00 00 00 00
+                                                                             
+     • This sequence appears to consist of values which could represent
+       data, possibly referring to an array or structured data given the
+       uniformity of the data pattern.    
+    • it doesn't look like a string
+    • it could be reversed since the endianness is different
+        0041560c
+        0041562c
+
+    • Let's check if the addresses are mapped (0x41560c, 0x41562c...).
+
+    get_memory_mappings()
+
+    • Addresses are mapped so it's an array of pointers,
+    Since I have more clues I'm not done yet. Let's peek into
+    those values:
+    get_bytes_from_addr(address=0x041560c, size=32)
+     
+    Serif\\0Calibri\\0Arial\\0...
+
+    Looks like it's an array of font names.
 """)
 
 
@@ -37,3 +72,4 @@ get_address_xrefs(0x426540)
 ## Logs good actions for fine-tuning
 
 ## Give examples to function usage / description for each function in the function itself
+## Give the agent the ability to read ida api docs?
