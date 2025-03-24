@@ -1,0 +1,54 @@
+
+MVP:
+Goal: reversing one function at a time, agentic.
+1. Tools for navigating the binary in ida.
+    1.2. Python class including tools of ida (**get xrefs** (usages or mentioning), **get_function_decompile**, search strings, search memory, search function, **get_call_graph** , etc..)
+2. Fine tuned gpt4 (nice to have)
+
+Evaluation:
+1. Evaluate results against qwen-coder and finetuned mistral
+
+Next iteration:
+1. gpt4 fine tune
+2. Offline model gpt4.5 similar results
+    2.1 integrate the model for offline use (should be better than qwen2.5)
+4. Give chat context abilities with the right tooling.
+
+Next iteration:
+5. Full binary analysis
+
+
+Ideal:
+1. Chat with binary, ask for sources and sinks, behavior of the binary, modules, handling etc..
+2. Search for code patterns (RAG all decompiled code) (CodeQL)
+3. Link dynamic calls and their vtables.
+
+Issues:
+1. Big functions
+2. context functions
+
+Strategies (Single function):
+
+1. **Provide xref usages** (Tool) - (also write a guide and examples of exploring xrefs)
+2. if you dont know do not rename binaries
+3. **Call graph** - get extensive call graph (backward and foreward)
+4. Scan the binary in overall to give the model a little bit of context
+5. Researcher guided exploration. (chat)
+6. improve tools
+    6.1. return objects as results (like memory, arrays, etc)
+            to help with understanding the results. (or ask the user)
+7. Team agents - correction agent + feedback agent / Researcher aided-feedback
+8. Divide prompts based on the techniques, create worker agent for that.
+    8.1. RAG those prompts? (to help the tool learn the right techniques) (temporary solution since fine tuning is preferred)
+9. Give the agent access to api docs (webtool/knowledgebase)
+    
+
+Full binary:
+4. **Bottom-up**? Up-bottom?
+5. Start with the top 5 most called functions
+6. Start with libc functions xrefs as seeds (small functions that we might be able to reverse easily, functions without no context)
+7. Start with stringed functions? it will make it easier to reverse the binary in overall
+
+Similar ideas:
+1. RAG Docs
+2. Codeql for decompiled code. indexing decompiled code.

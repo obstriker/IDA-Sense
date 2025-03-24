@@ -1,0 +1,14 @@
+## Changelog and thinking notes
+- Added type hints and docstrings
+- With examples, the LLM able to investigate array of strings/pointers further
+- Agent is able to understand functionality of a function based on the usage of it (going up in call-graph) (with direct instruction).
+
+
+#### Thoughts:
+- Team agents might be needed to validate and evaluate results of the agent like naming, assumptions, 
+    help the main agent get further and refine results.
+- 
+
+#### Tasks:
+1. Add call graph flow
+2. Give the agent access to api docs (webtool/knowledgebase)
