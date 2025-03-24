@@ -15,3 +15,4 @@ agent = Agent(
 )
 
 ## TODO: Add correction agent that suggests strategies? (Self-correcting and self-reflective prompting)
+## IDEA: Add ranker/evaluator/validator to ensure correct renaming

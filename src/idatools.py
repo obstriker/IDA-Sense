@@ -8,14 +8,26 @@ import ida_bytes
 import ida_segment
 import ida_kernwin
 import ida_hexrays
+import ida_name
 from ida_kernwin import get_screen_ea
+
+## IDEA: Generate a graph flow to help the LLM navigate backwards and forewards on
+##   the call graph/ variables/etc..?
+## for example: a1 -> b -> c -> "123456789"
+
+## Abstract the ida functionality, create objects? for ex. { array1: ["NONE", "GET", "POST", "PUT"] }
+
+## IDEA: agent struggles to identify end of an array but we can since there are xrefs from another function.
+## Use that as an indicator of the end of an array and create a function to simplify it.
+
+## Do not rename functions that has a name that doesn't start with "sub_"
 
 class IdaTools(Toolkit):
     """
     Toolkit for IDA Pro functionality.
     Provides various methods for analyzing and manipulating binary files within IDA Pro.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the IdaTools toolkit and register all methods."""
         super().__init__(name="ida_tools")
 
@@ -23,40 +35,40 @@ class IdaTools(Toolkit):
         self.register(self.get_function_usage)
         self.register(self.get_address_xrefs)
         self.register(self.get_decompiled_code)
-        self.register(self.search_strings)
-        self.register(self.get_function_args)
-        self.register(self.rename_function)
+        # self.register(self.search_strings)
+        # self.register(self.get_function_args)
+        self.register(self.rename)
         self.register(self.get_screen_function)
         self.register(self.hex_address_to_int)
         self.register(self.get_bytes_from_addr)
         self.register(self.get_memory_mappings)
 
-    def get_bytes_from_addr(self, address: str, size: int):
+    def read_until_xrefed_address(self) -> None:
+        pass
+
+    def get_bytes_from_addr(self, address: str, size: int) -> str:
         """
         Retrieve bytes from a specified memory address.
-        
         Args:
             address (str): Hexadecimal address to read from
             size (int): Number of bytes to read
-            
+
         Returns:
             str: JSON string containing the hexadecimal representation of the bytes
         """
-        if type(address) is str:
+        if isinstance(address, str):
             address = int(address, 16)
-            
+
         data = ida_bytes.get_bytes(address, size).hex()
         return json.dumps({"operation": "get_bytes_from", "result": data})
 
-    @staticmethod
-    def rename_local_variable(old_name, new_name):
+    def rename_local_variable(self, old_name: str, new_name: str) -> None:
         """
         Rename a local variable in the current pseudocode view.
-        
         Args:
             old_name (str): Current name of the variable
             new_name (str): New name to assign to the variable
-            
+
         Returns:
             None
         """
@@ -80,10 +92,9 @@ class IdaTools(Toolkit):
         else:
             print("The current widget is not a pseudocode view.")
 
-    def get_memory_mappings(self):
+    def get_memory_mappings(self) -> str:
         """
         Get information about all memory segments in the binary.
-        
         Returns:
             str: JSON string containing segment information (name, start address, end address, size)
         """
@@ -102,35 +113,30 @@ class IdaTools(Toolkit):
                 segments_list.append(seg_obj)
         return json.dumps({"operation": "get_memory_mappings", "result": segments_list})
 
-    def hex_address_to_int(self, n: str):
+    def hex_address_to_int(self, n: str) -> int:
         """
-        Convert a hexadecimal address string to an integer.
-        
         Args:
             n (str): Hexadecimal address string
-            
         Returns:
             str: JSON string containing the integer representation of the address
         """
         return json.dumps({"operation": "conver_hex_to_int", "result": int(n, 16)})
 
-    def get_screen_function(self):
+    def get_screen_function(self) -> str:
         """
-        Get the address of the function currently visible on screen.
-        
         Returns:
             str: JSON string containing the hexadecimal address of the current function
         """
-        return json.dumps({"operation": "get_screen_function", "result": hex(get_screen_ea())})
 
-    def rename_function(self, ea: str, func_name: str):
+        screen_function = ida_name.get_name_ea(0, idc.get_func_name(get_screen_ea()))
+        return json.dumps({"operation": "get_memory_mappings", "result": hex(screen_function)})
+
+    def rename(self, ea: str, func_name: str) -> str:
         """
-        Rename a function at the specified address.
-        
         Args:
             ea (str): Hexadecimal address of the function
             func_name (str): New name for the function
-            
+
         Returns:
             str: JSON string containing the result status of the rename operation
         """
@@ -144,90 +150,93 @@ class IdaTools(Toolkit):
     def get_call_graph(self, func_ea: str, visited=None, depth=0, max_depth=10):
         """
         Retrieve function call graph from root functions to a given function with depth limitation.
-        
         Args:
             func_ea (str): Hexadecimal address of the target function
             visited (set, optional): Set of already visited function addresses
             depth (int, optional): Current recursion depth
             max_depth (int, optional): Maximum recursion depth to prevent infinite loops
-            
+
         Returns:
             str: JSON string containing the call graph structure
         """
         if visited is None:
             visited = set()
-        
+
         if type(func_ea) is str:
             func_ea = int(func_ea, 16)
 
         if func_ea in visited or depth >= max_depth:
             return []
         visited.add(func_ea)
-        
+
         callers = []
         for xref in idautils.CodeRefsTo(func_ea, 0):
             func = idaapi.get_func(xref)
             if func and func.start_ea not in visited:
-                callers.append((xref, self.get_call_graph(func.start_ea, visited, depth+1, max_depth)))
+                callers.append({"addr": hex(xref), "name": idc.get_func_name(xref)})
+
+                next_graph = self.get_call_graph(func.start_ea, visited, depth+1, max_depth)
+                callers += json.loads(next_graph)["result"]
+
         return json.dumps({"operation": "get_call_graph", "result": callers})
 
-    def get_function_usage(self, func_ea: str):
+    def get_function_usage(self, func_ea: str) -> str:
         """
         Find where the function is used in the binary, filtering duplicates.
-        
         Args:
-            func_ea (str): Hexadecimal address of the function
-            
+            func_ea (str): Hexadecimal address of the function ("0x123456")
+
         Returns:
-            str: JSON string containing a list of addresses that reference the function
+            str: JSON string containing a list of Hexadecimal addresses that reference the function
         """
+        refrences = []
+
         if type(func_ea) is str:
             func_ea = int(func_ea, 16)
 
-        return json.dumps({"operation": "get_function_usage", "result": list(set(idautils.CodeRefsTo(func_ea, 0)))})
+        for addr in idautils.CodeRefsTo(func_ea, 0):
+            refrences.append(hex(addr))
 
-    def get_address_xrefs(self, ea: str):
+        return json.dumps({"operation": "get_function_usage", "result": refrences})
+
+    def get_address_xrefs(self, ea: str) -> str:
         """
         Get all cross-references (XREFs) to and from a function, excluding self-references and intra-function references.
-        
         Args:
             ea (str): Hexadecimal address to analyze
-            
         Returns:
-            str: JSON string containing a list of cross-reference addresses
+            str: JSON string containing a list of cross-reference Hexadecimal addresses
         """
         xrefs = []
-        func = idaapi.get_func(ea)
-        
+
         if isinstance(ea, str):
             ea = int(ea, 16)
 
+        func = idaapi.get_func(ea)
+
         for xref in idautils.XrefsTo(ea):
             if xref.frm != ea and (not func or not func.contains(xref.frm)):
-                xrefs.append(xref.frm)
-        
+                xrefs.append(hex(xref.frm))
+
         for xref in idautils.XrefsFrom(ea, 0):
             if xref.to != ea and (not func or not func.contains(xref.to)):
-                xrefs.append(xref.to)
-        
+                xrefs.append(hex(xref.to))
+
         return json.dumps({"operation": "get_xrefs", "result": list(set(xrefs))})
 
-    def get_decompiled_code(self, func_ea):
+    def get_decompiled_code(self, func_ea: str) -> str:
         """
         Retrieve decompiled pseudocode for a given function as a text string with error handling.
-        
+
         Args:
-            func_ea (str or int): Hexadecimal address or integer address of the function
-            
+            func_ea (str): Hexadecimal address or integer address of the function
+
         Returns:
             str: JSON string containing the decompiled pseudocode or empty string if decompilation fails
         """
         try:
-            if type(func_ea) is str:
+            if isinstance(func_ea, str):
                 func_ea = int(func_ea, 16)
-            print(func_ea)
-            print(type(func_ea))
-            
             if idaapi.init_hexrays_plugin():
                 return json.dumps({"operation": "get_decompiled_code", "result": str(idaapi.decompile(func_ea))})
         except idaapi.DecompilationFailure as e:
@@ -239,10 +248,10 @@ class IdaTools(Toolkit):
     def search_strings(self, pattern: str):
         """
         Search for strings in the binary matching a given pattern, case-insensitive.
-        
+
         Args:
             pattern (str): String pattern to search for
-            
+
         Returns:
             list: List of tuples containing (address, string value) for matches
         """
@@ -255,10 +264,10 @@ class IdaTools(Toolkit):
     def get_function_args(self, func_ea: str):
         """
         Retrieve function argument count and types if available.
-        
+
         Args:
             func_ea (str): Hexadecimal address of the function
-            
+
         Returns:
             str: JSON string containing a list of function arguments with their types
         """

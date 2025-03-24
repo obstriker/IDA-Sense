@@ -73,3 +73,8 @@ get_bytes_from_addr(address=0x12345678, size=32)
 
 ## Give examples to function usage / description for each function in the function itself
 ## Give the agent the ability to read ida api docs?
+
+## Divide prompt to technique prompts?
+
+## add functions like ``is_likely_string_array`` to help LLM with
+## with assumptions
