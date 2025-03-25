@@ -22,6 +22,20 @@ each step update the your plan and check if there's anything you can do to furth
 or enrich your context to achieve your goal.
 use mappings to ensure if a pointer is valid
 
+Renaming must have a context meaning if not then do not rename.
+bad names:
+- findSubstringWithinSet
+- calculateStringBoundary
+- convertSubstringToInteger
+
+good names:
+- openUnixSocket
+- hasHeader
+- getStatusDescription
+- parseAbsolutePath
+- onMessage
+- parseConfig
+
 example of function calling:
 get_bytes_from_addr(address=0x421230, size=4)
 hex_address_to_int(n="0x8564100")

@@ -22,6 +22,8 @@ from ida_kernwin import get_screen_ea
 
 ## Do not rename functions that has a name that doesn't start with "sub_"
 
+## TODO: Search functions (for src and sinks, queries about the binary, etc)
+
 class IdaTools(Toolkit):
     """
     Toolkit for IDA Pro functionality.
@@ -143,8 +145,11 @@ class IdaTools(Toolkit):
         if type(ea) is str:
             ea = int(ea, 16)
 
-        func_ea = ida_funcs.get_func(ea).start_ea
-        res = idc.set_name(func_ea, func_name, idc.SN_NOWARN)
+        try:
+            dst_ea = ida_funcs.get_func(ea).start_ea
+        except:
+            dst_ea = ea
+        res = idc.set_name(dst_ea, func_name, idc.SN_NOWARN)
         return json.dumps({"operation": "rename_function", "result": res})
 
     def get_call_graph(self, func_ea: str, visited=None, depth=0, max_depth=10):

@@ -1,8 +1,8 @@
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.tools.python import PythonTools
-from idatools import *
-from prompts import default_prompt_zh
+from src.idatools import *
+from src.prompts import default_prompt_zh
 
 # Initialize Agno AI agent
 agent = Agent(
