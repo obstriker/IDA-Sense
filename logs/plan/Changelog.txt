@@ -7,8 +7,13 @@
 #### Thoughts:
 - Team agents might be needed to validate and evaluate results of the agent like naming, assumptions, 
     help the main agent get further and refine results.
-- 
+- How would feedback agent look like?
+- It seems that adding context about the binary **really help** the agent
+    understand and name much better. What will be better,
+    docs or short summary?
+- Should I gather some of the context beforehand? (usage, decompiled_code, call_graph etc..)
 
 #### Tasks:
 1. Add call graph flow
-2. Give the agent access to api docs (webtool/knowledgebase)
+2. Test - Workflow with multiple prompts of techniques
+3. Give the agent access to api docs (webtool/knowledgebase)

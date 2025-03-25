@@ -41,7 +41,9 @@ Strategies (Single function):
 8. Divide prompts based on the techniques, create worker agent for that.
     8.1. RAG those prompts? (to help the tool learn the right techniques) (temporary solution since fine tuning is preferred)
 9. Give the agent access to api docs (webtool/knowledgebase)
-    
+10. Extract useful information about the binary/PDB + user information + Docs and RAG it. Then the agent is able
+    to navigate the binary better.
+11. Use Agno workflow to struct flows for exploring/research (exploring addresses, functions, globals, strings etc.., im not sure what else)
 
 Full binary:
 4. **Bottom-up**? Up-bottom?

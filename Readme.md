@@ -11,6 +11,7 @@ Abilities:
 2. Figure out structs
 3. Figure out and link vtables
 4. Symbol restoration
+5. Chat with codebase/function
 
 
 ## Future

@@ -8,7 +8,6 @@ Team agents:
                 checkout the steps of the main agent
 
 
-
 prompt for each technique?
 Techniques:
 1. read and interpret memory - array of(ptrs, callbacks, strings)
