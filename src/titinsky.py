@@ -10,7 +10,7 @@ agent = Agent(
     tools=[IdaTools(), PythonTools(run_code=True)],
     description=default_prompt_zh,
     show_tool_calls=True,
-    debug_mode=True,
+    # debug_mode=True,
     markdown=True
 )
 

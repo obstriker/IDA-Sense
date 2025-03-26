@@ -3,7 +3,6 @@
 - With examples, the LLM able to investigate array of strings/pointers further
 - Agent is able to understand functionality of a function based on the usage of it (going up in call-graph) (with direct instruction).
 
-
 #### Thoughts:
 - Team agents might be needed to validate and evaluate results of the agent like naming, assumptions, 
     help the main agent get further and refine results.
@@ -12,6 +11,7 @@
     understand and name much better. What will be better,
     docs or short summary?
 - Should I gather some of the context beforehand? (usage, decompiled_code, call_graph etc..)
+- Agent doesn't validate it's assumptions, very bad.
 
 #### Tasks:
 1. Add call graph flow

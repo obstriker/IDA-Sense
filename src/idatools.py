@@ -37,13 +37,110 @@ class IdaTools(Toolkit):
         self.register(self.get_function_usage)
         self.register(self.get_address_xrefs)
         self.register(self.get_decompiled_code)
-        # self.register(self.search_strings)
+        self.register(self.search_strings)
         # self.register(self.get_function_args)
+        self.register(self.get_all_function_names)
+        self.register(self.list_imports)
+        self.register(self.list_exports)
+        self.register(self.defined_data)
+        self.register(self.search_functions_by_name)
+        # self.register(self.Decompile_function_by_name)
         self.register(self.rename)
         self.register(self.get_screen_function)
         self.register(self.hex_address_to_int)
         self.register(self.get_bytes_from_addr)
         self.register(self.get_memory_mappings)
+
+    def defined_data(self) -> str:
+        """
+        Get all named data (excluding functions), like global variables or constants.
+
+        Returns:
+            str: JSON array of data names and addresses
+        """
+        data = []
+        for ea, name in idautils.Names():
+            try:
+                if not ida_funcs.get_func(ea) and ("_imp" not in name):  # Correct usage: pass just the address
+                    data.append({"name": name, "ea": hex(ea)})
+            except:
+                pass
+        return json.dumps({"operation": "defined_data", "result": data})
+
+
+    def list_exports(self) -> str:
+        """
+        List all exported symbols using modern IDA API.
+
+        Returns:
+            str: JSON array of exported names, addresses, and ordinals
+        """
+        exports = []
+        for ordinal, ea, name in idautils.Entries():
+            exports.append({
+                "name": name,
+                "ea": hex(ea),
+                "ordinal": ordinal
+            })
+        return json.dumps({"operation": "list_exports", "result": exports})
+
+    def list_imports(self) -> str:
+        """
+        List all imported functions with module and name.
+
+        Returns:
+            str: JSON array of imported functions (module, function name, address)
+        """
+        imports = []
+
+        def imp_cb(ea, name, ord):
+            imports.append({
+                "ea": hex(ea),
+                "name": name,
+                "ordinal": ord
+            })
+            return True
+
+        nimps = idaapi.get_import_module_qty()
+        for i in range(nimps):
+            name = idaapi.get_import_module_name(i) or f"module_{i}"
+            idaapi.enum_import_names(i, lambda ea, func_name, ord: imp_cb(ea, func_name, ord))
+
+        return json.dumps({"operation": "list_imports", "result": imports})
+
+
+    def get_all_function_names(self) -> str:
+        """
+        Get all function names and their start addresses.
+
+        Returns:
+            str: JSON object mapping function names to their addresses
+        """
+        funcs = {}
+        for ea in idautils.Functions():
+            name = idc.get_func_name(ea)
+            funcs[name] = hex(ea)
+        return json.dumps({"operation": "get_all_function_names", "result": funcs})
+
+
+    def search_functions_by_name(self, pattern: str) -> str:
+        """
+        Search all function names for a given substring.
+
+        Args:
+            pattern (str): Substring to search for in function names
+
+        Returns:
+            str: JSON list of function names and addresses matching the pattern
+        """
+        result = []
+        for ea in idautils.Functions():
+            name = idc.get_func_name(ea)
+            if (pattern.lower() in name.lower()):
+                result.append({"name": name, "ea": hex(ea)})
+
+        return json.dumps({"operation": "search_functions", "result": result})
+
 
     def read_until_xrefed_address(self) -> None:
         pass
