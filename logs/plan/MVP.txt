@@ -44,12 +44,14 @@ Strategies (Single function):
 10. Extract useful information about the binary/PDB + user information + Docs and RAG it. Then the agent is able
     to navigate the binary better.
 11. Use Agno workflow to struct flows for exploring/research (exploring addresses, functions, globals, strings etc.., im not sure what else)
+12. Main agent generates research questions which other agents try to answer each with a different responsibility
 
 Full binary:
 4. **Bottom-up**? Up-bottom?
 5. Start with the top 5 most called functions
 6. Start with libc functions xrefs as seeds (small functions that we might be able to reverse easily, functions without no context)
 7. Start with stringed functions? it will make it easier to reverse the binary in overall
+8. start with inputs like reading files, recv, send then loop up the call flow (taint analysis).
 
 Similar ideas:
 1. RAG Docs
