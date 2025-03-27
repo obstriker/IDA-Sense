@@ -3,10 +3,13 @@ call_graph -> {result: 0x123123->0x123123->0x12789,
                         0x123333->0x123333->0x12789}
 get_array -> {results: { array1: ["NONE", "GET", "POST", "PUT"] }}
 
+
+Tasks for workflow/team: Research global, function & variable reverser (rename), flow tracer, struct builder,
+                          symbol and flow validator/evaluator, 
 Team agents:
 1. Feedback - gives feedback on each step of the worker agent or
                 checkout the steps of the main agent
-
+1. 
 
 prompt for each technique?
 Techniques:
