@@ -3,6 +3,7 @@
 - With examples, the LLM able to investigate array of strings/pointers further
 - Agent is able to understand functionality of a function based on the usage of it (going up in call-graph) (with direct instruction).
 
+
 #### Thoughts:
 - Team agents might be needed to validate and evaluate results of the agent like naming, assumptions, 
     help the main agent get further and refine results.
@@ -17,3 +18,4 @@
 1. Add call graph flow
 2. Test - Workflow with multiple prompts of techniques
 3. Give the agent access to api docs (webtool/knowledgebase)
+4. Create roadmap + parallel strategies to research and test.

@@ -38,6 +38,7 @@ Strategies (Single function):
     6.1. return objects as results (like memory, arrays, etc)
             to help with understanding the results. (or ask the user)
 7. Team agents - correction agent + feedback agent / Researcher aided-feedback
+    7.1 evaluation & validation agent.
 8. Divide prompts based on the techniques, create worker agent for that.
     8.1. RAG those prompts? (to help the tool learn the right techniques) (temporary solution since fine tuning is preferred)
 9. Give the agent access to api docs (webtool/knowledgebase)
@@ -46,12 +47,14 @@ Strategies (Single function):
 11. Use Agno workflow to struct flows for exploring/research (exploring addresses, functions, globals, strings etc.., im not sure what else)
 12. Main agent generates research questions which other agents try to answer each with a different responsibility
 
+
 Full binary:
 4. **Bottom-up**? Up-bottom?
 5. Start with the top 5 most called functions
 6. Start with libc functions xrefs as seeds (small functions that we might be able to reverse easily, functions without no context)
 7. Start with stringed functions? it will make it easier to reverse the binary in overall
 8. start with inputs like reading files, recv, send then loop up the call flow (taint analysis).
+9. Read cves and try to match them or their patch in the binary
 
 Similar ideas:
 1. RAG Docs
