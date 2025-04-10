@@ -191,7 +191,8 @@ class Server:
 
     def start(self):
         if self.running:
-            print("[MCP] Server is already running")
+            print("[MCP] Server Stopping")
+            self.stop()
             return
 
         self.server_thread = threading.Thread(target=self._run_server, daemon=True)
@@ -407,7 +408,12 @@ def get_image_size():
 @jsonrpc
 @idaread
 def get_metadata() -> Metadata:
-    """Get metadata about the current IDB"""
+    """
+    Get metadata about the current IDB.
+
+    Returns:
+        Metadata: Dictionary containing information about the current binary file such as path, module name, base address, size, and various checksums.
+    """
     return {
         "path": idaapi.get_input_file_path(),
         "module": idaapi.get_root_filename(),
@@ -420,6 +426,15 @@ def get_metadata() -> Metadata:
     }
 
 def get_prototype(fn: ida_funcs.func_t) -> Optional[str]:
+    """
+    Get the function prototype for a given function.
+    
+    Args:
+        fn: The function to get the prototype for
+        
+    Returns:
+        The function prototype as a string, or None if it couldn't be determined
+    """
     try:
         prototype: ida_typeinf.tinfo_t = fn.get_prototype()
         if prototype is not None:
@@ -444,6 +459,18 @@ class Function(TypedDict):
     size: str
 
 def parse_address(address: str) -> int:
+    """
+    Parse a string representation of an address into an integer.
+    
+    Args:
+        address: String representation of the address (e.g., "0x1234")
+        
+    Returns:
+        The parsed address as an integer
+        
+    Raises:
+        IDAError: If the address cannot be parsed
+    """
     try:
         return int(address, 0)
     except ValueError:
@@ -453,6 +480,19 @@ def parse_address(address: str) -> int:
         raise IDAError(f"Failed to parse address (missing 0x prefix): {address}")
 
 def get_function(address: int, *, raise_error=True) -> Function:
+    """
+    Get information about a function at the specified address.
+    
+    Args:
+        address: The address of the function
+        raise_error: If True, raise an error when the function is not found
+        
+    Returns:
+        A dictionary containing the function's address, name, and size
+        
+    Raises:
+        IDAError: If no function is found at the address and raise_error is True
+    """
     fn = idaapi.get_func(address)
     if fn is None:
         if raise_error:
@@ -472,6 +512,12 @@ def get_function(address: int, *, raise_error=True) -> Function:
 DEMANGLED_TO_EA = {}
 
 def create_demangled_to_ea_map():
+    """
+    Create a mapping of demangled function names to their addresses.
+    
+    This populates the global DEMANGLED_TO_EA dictionary with demangled function names
+    as keys and their corresponding addresses as values.
+    """
     for ea in idautils.Functions():
         # Get the function name and demangle it
         # MNG_NODEFINIT inhibits everything except the main name
@@ -487,7 +533,15 @@ def create_demangled_to_ea_map():
 def get_function_by_name(
     name: Annotated[str, "Name of the function to get"]
 ) -> Function:
-    """Get a function by its name"""
+    """
+    Retrieves a function's address by its name from the IDA database.
+    
+    Args:
+        function_name (str): The name of the function to search for
+        
+    Returns:
+        Optional[int]: The address of the function if found, None otherwise
+    """
     function_address = idaapi.get_name_ea(idaapi.BADADDR, name)
     if function_address == idaapi.BADADDR:
         # If map has not been created yet, create it
@@ -505,19 +559,37 @@ def get_function_by_name(
 def get_function_by_address(
     address: Annotated[str, "Address of the function to get"]
 ) -> Function:
-    """Get a function by its address"""
+    """
+    Get a function by its address.
+    
+    Args:
+        address: The address of the function
+        
+    Returns:
+        Function: Information about the found function
+    """
     return get_function(parse_address(address))
 
 @jsonrpc
 @idaread
 def get_current_address() -> str:
-    """Get the address currently selected by the user"""
+    """
+    Get the address currently selected by the user.
+    
+    Returns:
+        str: The hexadecimal representation of the current address
+    """
     return hex(idaapi.get_screen_ea())
 
 @jsonrpc
 @idaread
 def get_current_function() -> Optional[Function]:
-    """Get the function currently selected by the user"""
+    """
+    Get the function currently selected by the user.
+    
+    Returns:
+        Optional[Function]: Information about the current function, or None if not in a function
+    """
     return get_function(idaapi.get_screen_ea())
 
 class ConvertedNumber(TypedDict):
@@ -578,6 +650,17 @@ class Page(TypedDict, Generic[T]):
     next_offset: Optional[int]
 
 def paginate(data: list[T], offset: int, count: int) -> Page[T]:
+    """
+    Paginate a list of items.
+    
+    Args:
+        data: The list to paginate
+        offset: The starting index
+        count: The number of items per page (0 means all remaining items)
+        
+    Returns:
+        A dictionary containing the paginated data and the offset for the next page
+    """
     if count == 0:
         count = len(data)
     next_offset = offset + count
@@ -590,11 +673,82 @@ def paginate(data: list[T], offset: int, count: int) -> Page[T]:
 
 @jsonrpc
 @idaread
+def list_exports() -> str:
+    """
+    List all exported symbols using modern IDA API.
+
+    Returns:
+        str: JSON array of exported names, addresses, and ordinals
+    """
+    exports = []
+    for ordinal, ea, name in idautils.Entries():
+        exports.append({
+            "name": name,
+            "ea": hex(ea),
+            "ordinal": ordinal
+        })
+    return json.dumps({"operation": "list_exports", "result": exports})
+
+@jsonrpc
+@idaread
+def list_imports() -> str:
+    """
+    List all imported functions with module and name.
+
+    Returns:
+        str: JSON array of imported functions (module, function name, address)
+    """
+    imports = []
+
+    def imp_cb(ea, name, ord):
+        imports.append({
+            "ea": hex(ea),
+            "name": name,
+            "ordinal": ord
+        })
+        return True
+
+    nimps = idaapi.get_import_module_qty()
+    for i in range(nimps):
+        name = idaapi.get_import_module_name(i) or f"module_{i}"
+        idaapi.enum_import_names(i, lambda ea, func_name, ord: imp_cb(ea, func_name, ord))
+
+    return json.dumps({"operation": "list_imports", "result": imports})
+
+@jsonrpc
+@idaread
+def get_bytes_from_addr(address: Annotated[str, "Address of address to read from"], size: Annotated[int, "Number of bytes to read"]) -> str:
+    """
+    Retrieve bytes from a specified memory address.
+    Args:
+        address (str): Hexadecimal address to read from
+        size (int): Number of bytes to read
+
+    Returns:
+        str: JSON string containing the hexadecimal representation of the bytes
+    """
+    if isinstance(address, str):
+        address = int(address, 16)
+
+    data = ida_bytes.get_bytes(address, size).hex()
+    return data
+
+@jsonrpc
+@idaread
 def list_functions(
     offset: Annotated[int, "Offset to start listing from (start at 0)"],
     count: Annotated[int, "Number of functions to list (100 is a good default, 0 means remainder)"],
 ) -> Page[Function]:
-    """List all functions in the database (paginated)"""
+    """
+    List all functions in the database (paginated).
+    
+    Args:
+        offset: The starting index for pagination
+        count: The number of functions to return per page
+        
+    Returns:
+        Page[Function]: Paginated list of functions
+    """
     functions = [get_function(address) for address in idautils.Functions()]
     return paginate(functions, offset, count)
 
@@ -604,7 +758,15 @@ class String(TypedDict):
     type: str
     string: str
 
+@jsonrpc
+@idaread
 def get_strings() -> list[String]:
+    """
+    Get all strings found in the binary.
+    
+    Returns:
+        A list of dictionaries containing information about each string
+    """
     strings = []
     for item in idautils.Strings():
         string_type = "C" if item.strtype == 0 else "Unicode"
@@ -627,9 +789,38 @@ def list_strings(
     offset: Annotated[int, "Offset to start listing from (start at 0)"],
     count: Annotated[int, "Number of strings to list (100 is a good default, 0 means remainder)"],
 ) -> Page[String]:
-    """List all strings in the database (paginated)"""
+    """
+    List all strings in the database (paginated).
+    
+    Args:
+        offset: The starting index for pagination
+        count: The number of strings to return per page
+        
+    Returns:
+        Page[String]: Paginated list of strings
+    """
     strings = get_strings()
     return paginate(strings, offset, count)
+
+@jsonrpc
+@idaread
+def search_functions_by_name(pattern: str) -> str:
+    """
+    Search all function names for a given substring.
+
+    Args:
+        pattern (str): Substring to search for in function names
+
+    Returns:
+        str: JSON list of function names and addresses matching the pattern
+    """
+    result = []
+    for ea in idautils.Functions():
+        name = idc.get_func_name(ea)
+        if (pattern.lower() in name.lower()):
+            result.append({"name": name, "ea": hex(ea)})
+
+    return json.dumps({"operation": "search_functions", "result": result})
 
 @jsonrpc
 @idaread
@@ -638,7 +829,17 @@ def search_strings(
         offset: Annotated[int, "Offset to start listing from (start at 0)"],
         count: Annotated[int, "Number of strings to list (100 is a good default, 0 means remainder)"],
 ) -> Page[String]:
-    """Search for strings that satisfy a regular expression"""
+    """
+    Search for strings containing the given pattern (case-insensitive).
+    
+    Args:
+        pattern: The substring to search for in strings
+        offset: The starting index for pagination
+        count: The number of strings to return per page
+        
+    Returns:
+        Page[String]: Paginated list of matching strings
+    """
     strings = get_strings()
     try:
         pattern = re.compile(pattern_str)
@@ -680,10 +881,18 @@ def decompile_checked(address: int) -> ida_hexrays.cfunc_t:
 
 @jsonrpc
 @idaread
-def decompile_function(
+def get_function_decompile(
     address: Annotated[str, "Address of the function to decompile"]
 ) -> str:
-    """Decompile a function at the given address"""
+    """
+    get Decompile psudo-code of a function at the given address. (address example: "0x12345678")
+    
+    Args:
+        address: The address of the function to decompile
+        
+    Returns:
+        str: The decompiled function pseudocode
+    """
     address = parse_address(address)
     cfunc = decompile_checked(address)
     if is_window_active():
@@ -711,12 +920,22 @@ def decompile_function(
 
     return pseudocode
 
-@jsonrpc
-@idaread
 def disassemble_function(
     start_address: Annotated[str, "Address of the function to disassemble"]
 ) -> str:
-    """Get assembly code (address: instruction; comment) for a function"""
+    """
+    Disassembles an IDA function at the given address and returns its instructions.
+    
+    Args:
+        function_address (int): The address of the function to disassemble
+        with_comments (bool, optional): Whether to include comments in the 
+                                      disassembly. Defaults to True.
+        
+    Returns:
+        list[dict]: A list of dictionaries, each representing an instruction.
+                   Each dictionary contains keys like 'address', 'mnemonic',
+                   'operands', 'bytes', and optionally 'comment'.
+    """
     start = parse_address(start_address)
     func = idaapi.get_func(start)
     if not func:
@@ -748,7 +967,15 @@ class Xref(TypedDict):
 def get_xrefs_to(
     address: Annotated[str, "Address to get cross references to"]
 ) -> list[Xref]:
-    """Get all cross references to the given address"""
+    """
+    Gets all cross-references to the specified address (hex address in string, example: "0x12345678").
+    
+    Args:
+        address (int): The target address to find references to
+        
+    Returns:
+        list[int]: A list of addresses that reference the target address
+    """
     xrefs = []
     xref: ida_xref.xrefblk_t
     for xref in idautils.XrefsTo(parse_address(address)):
@@ -762,7 +989,12 @@ def get_xrefs_to(
 @jsonrpc
 @idaread
 def get_entry_points() -> list[Function]:
-    """Get all entry points in the database"""
+    """
+    Get all entry points in the database.
+    
+    Returns:
+        list[Function]: A list of functions that are entry points
+    """
     result = []
     for i in range(ida_entry.get_entry_qty()):
         ordinal = ida_entry.get_entry_ordinal(i)
@@ -771,6 +1003,46 @@ def get_entry_points() -> list[Function]:
         if func is not None:
             result.append(func)
     return result
+
+@jsonrpc
+@idaread
+def get_call_graph(
+    func_ea: Annotated[str, "Hexadecimal address of the target function"],
+    visited: Annotated[Optional[set], "Set of already visited function addresses"] = None,
+    depth: Annotated[int, "Current recursion depth"] = 0,
+    max_depth: Annotated[int, "Maximum recursion depth to prevent infinite loops"] = 10
+) -> str:
+    """
+    Retrieve function call graph from root functions to a given function with depth limitation.
+    Args:
+        func_ea (str): Hexadecimal address of the target function
+        visited (set, optional): Set of already visited function addresses
+        depth (int, optional): Current recursion depth
+        max_depth (int, optional): Maximum recursion depth to prevent infinite loops
+
+    Returns:
+        str: JSON string containing the call graph structure
+    """
+    if visited is None:
+        visited = set()
+
+    if type(func_ea) is str:
+        func_ea = int(func_ea, 16)
+
+    if func_ea in visited or depth >= max_depth:
+        return []
+    visited.add(func_ea)
+
+    callers = []
+    for xref in idautils.CodeRefsTo(func_ea, 0):
+        func = idaapi.get_func(xref)
+        if func and func.start_ea not in visited:
+            callers.append({"addr": hex(xref), "name": idc.get_func_name(xref)})
+
+            next_graph = get_call_graph(func.start_ea, visited, depth+1, max_depth)
+            callers += json.loads(next_graph)["result"]
+
+    return json.dumps({"operation": "get_call_graph", "result": callers})
 
 @jsonrpc
 @idawrite
@@ -991,6 +1263,23 @@ def set_local_variable_type(
         raise IDAError(f"Failed to modify local variable: {variable_name}")
     refresh_decompiler_ctext(func.start_ea)
 
+def get_metadata() -> Metadata:
+    """
+    Get metadata about the current IDB.
+
+    Returns:
+        Metadata: Dictionary containing information about the current binary file such as path, module name, base address, size, and various checksums.
+    """
+    return {
+        "path": idaapi.get_input_file_path(),
+        "module": idaapi.get_root_filename(),
+        "base": hex(idaapi.get_imagebase()),
+        "size": hex(get_image_size()),
+        "md5": ida_nalt.retrieve_input_file_md5().hex(),
+        "sha256": ida_nalt.retrieve_input_file_sha256().hex(),
+        "crc32": hex(ida_nalt.retrieve_input_file_crc32()),
+        "filesize": hex(ida_nalt.retrieve_input_file_size()),
+    }
 class MCP(idaapi.plugin_t):
     flags = idaapi.PLUGIN_KEEP
     comment = "MCP Plugin"
