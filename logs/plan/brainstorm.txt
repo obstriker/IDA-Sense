@@ -11,3 +11,6 @@ Team agents:
 prompt for each technique?
 Techniques:
 1. read and interpret memory - array of(ptrs, callbacks, strings)
+
+Multiagents Tasks:
+    1. address_explorer
