@@ -2,6 +2,7 @@
 - Added type hints and docstrings
 - With examples, the LLM able to investigate array of strings/pointers further
 - Agent is able to understand functionality of a function based on the usage of it (going up in call-graph) (with direct instruction).
+- Switched to mcp architecture
 
 
 #### Thoughts:
@@ -13,9 +14,17 @@
     docs or short summary?
 - Should I gather some of the context beforehand? (usage, decompiled_code, call_graph etc..)
 - Agent doesn't validate it's assumptions, very bad.
+- Deconstruct simple tasks? (like understanding a memory blob: ptr, data, etc ..)
 
 #### Tasks:
-1. Add call graph flow
+1. ~~Add call graph flow~~
 2. Test - Workflow with multiple prompts of techniques
+    1. fix: list exports, list_imports, 
+    2. reduce multiple functions for the same function (list_strings, search_strings, etc ..)
+    3. inject get_memory_map
+    4. test get_call_graph
+    5. Prompt tuning
+        1. Xref not analyzed properly
+        2. Memory content need further analysis
 3. Give the agent access to api docs (webtool/knowledgebase)
 4. Create roadmap + parallel strategies to research and test.
