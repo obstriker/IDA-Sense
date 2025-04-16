@@ -1,6 +1,6 @@
 *.pyc
 */*.pyc
 .env
-.md
-.db
+*/*.md
+*/*.db
 .roo
