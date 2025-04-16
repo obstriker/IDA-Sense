@@ -673,7 +673,10 @@ def paginate(data: list[T], offset: int, count: int) -> Page[T]:
 
 @jsonrpc
 @idaread
-def list_exports() -> str:
+def list_exports(
+        offset: Annotated[int, "Offset to start listing from (start at 0)"] = 0x0,
+        count: Annotated[int, "Number of imports to list (100 is a good default, 0 means remainder)"] = 10,
+) -> str:
     """
     List all exported symbols using modern IDA API.
 
@@ -681,17 +684,22 @@ def list_exports() -> str:
         str: JSON array of exported names, addresses, and ordinals
     """
     exports = []
-    for ordinal, ea, name in idautils.Entries():
+    for export in idautils.Entries():
+        _, ea, _, name = export
         exports.append({
             "name": name,
             "ea": hex(ea),
-            "ordinal": ordinal
+            # "ordinal": ordinal
         })
-    return json.dumps({"operation": "list_exports", "result": exports})
+
+    return paginate(exports, offset, count)
 
 @jsonrpc
 @idaread
-def list_imports() -> str:
+def list_imports(
+        offset: Annotated[int, "Offset to start listing from (start at 0)"] = 0x0,
+        count: Annotated[int, "Number of imports to list (100 is a good default, 0 means remainder)"] = 10,
+) -> str:
     """
     List all imported functions with module and name.
 
@@ -704,7 +712,7 @@ def list_imports() -> str:
         imports.append({
             "ea": hex(ea),
             "name": name,
-            "ordinal": ord
+            # "ordinal": ord
         })
         return True
 
@@ -713,7 +721,7 @@ def list_imports() -> str:
         name = idaapi.get_import_module_name(i) or f"module_{i}"
         idaapi.enum_import_names(i, lambda ea, func_name, ord: imp_cb(ea, func_name, ord))
 
-    return json.dumps({"operation": "list_imports", "result": imports})
+    return paginate(imports, offset, count)
 
 @jsonrpc
 @idaread
@@ -725,13 +733,22 @@ def get_bytes_from_addr(address: Annotated[str, "Address of address to read from
         size (int): Number of bytes to read
 
     Returns:
-        str: JSON string containing the hexadecimal representation of the bytes
+        Example: {"val": "0x112c00", "addr": "0xb1234", "label": "sub_112C00"}
+        Wher val is the value in the memory, 
+        addr is the address of the value,
+        label is the name of the value
     """
-    if isinstance(address, str):
-        address = int(address, 16)
+    # if isinstance(address, str):
+    #     address = int(address, 16)
 
-    data = ida_bytes.get_bytes(address, size).hex()
-    return data
+    # data = ida_bytes.get_bytes(address, size).hex()
+    # return ' '.join([data[i:i+2] for i in range(0, len(data), 2)])
+    import ida_memory
+    address = int(address, 16)
+    
+    memory_bytes = ida_memory.get_defined_bytes_from(address, size)
+    memory_bytes = [vars(b) for b in memory_bytes]
+    return memory_bytes
 
 @jsonrpc
 @idaread
@@ -758,8 +775,6 @@ class String(TypedDict):
     type: str
     string: str
 
-@jsonrpc
-@idaread
 def get_strings() -> list[String]:
     """
     Get all strings found in the binary.
@@ -869,7 +884,7 @@ def decompile_checked(address: int) -> ida_hexrays.cfunc_t:
     if not ida_hexrays.init_hexrays_plugin():
         raise IDAError("Hex-Rays decompiler is not available")
     error = ida_hexrays.hexrays_failure_t()
-    cfunc: ida_hexrays.cfunc_t = ida_hexrays.decompile_func(address, error, ida_hexrays.DECOMP_WARNINGS)
+    cfunc: ida_hexrays.cfunc_t = idaapi.decompile(address)
     if not cfunc:
         message = f"Decompilation failed at {hex(address)}"
         if error.str:
@@ -897,7 +912,7 @@ def get_function_decompile(
     cfunc = decompile_checked(address)
     if is_window_active():
         ida_hexrays.open_pseudocode(address, ida_hexrays.OPF_REUSE)
-    sv = cfunc.get_pseudocode()
+    return str(idaapi.decompile(address))
     pseudocode = ""
     for i, sl in enumerate(sv):
         sl: ida_kernwin.simpleline_t
@@ -968,7 +983,7 @@ def get_xrefs_to(
     address: Annotated[str, "Address to get cross references to"]
 ) -> list[Xref]:
     """
-    Gets all cross-references to the specified address (hex address in string, example: "0x12345678").
+    Gets all cross-references to the specified address (including data addresses) (hex address in string, example: "0x12345678").
     
     Args:
         address (int): The target address to find references to
@@ -988,7 +1003,10 @@ def get_xrefs_to(
 
 @jsonrpc
 @idaread
-def get_entry_points() -> list[Function]:
+def get_entry_points(
+        offset: Annotated[int, "Offset to start listing from (start at 0)"] = 0x0,
+        count: Annotated[int, "Number of imports to list (100 is a good default, 0 means remainder)"] = 30,
+    ) -> list[Function]:
     """
     Get all entry points in the database.
     
@@ -1002,7 +1020,8 @@ def get_entry_points() -> list[Function]:
         func = get_function(address, raise_error=False)
         if func is not None:
             result.append(func)
-    return result
+
+    return paginate(result, offset, count)
 
 @jsonrpc
 @idaread
@@ -1014,6 +1033,7 @@ def get_call_graph(
 ) -> str:
     """
     Retrieve function call graph from root functions to a given function with depth limitation.
+    (ONLY for functions)
     Args:
         func_ea (str): Hexadecimal address of the target function
         visited (set, optional): Set of already visited function addresses
@@ -1122,14 +1142,14 @@ def rename_local_variable(
 @jsonrpc
 @idawrite
 def rename_global_variable(
-    old_name: Annotated[str, "Current name of the global variable"],
+    old_name: Annotated[str, "Current label of the global variable"],
     new_name: Annotated[str, "New name for the global variable (empty for a default name)"]
 ):
     """Rename a global variable"""
     ea = idaapi.get_name_ea(idaapi.BADADDR, old_name)
     if not idaapi.set_name(ea, new_name):
         raise IDAError(f"Failed to rename global variable {old_name} to {new_name}")
-    refresh_decompiler_ctext(ea)
+    # refresh_decompiler_ctext(ea)
 
 @jsonrpc
 @idawrite
