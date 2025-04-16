@@ -170,6 +170,25 @@ class renaming_scorer:
 
     Rate the contextual quality of the suggested name on a scale from 1 (very poor) to 10 (highly relevant). Explain your score.
     """
+
+class flow_tracer:
+    description = """
+    You are a Trace Flow agent. Your job is to trace control and data flow from a given address. 
+    You must identify all reachable functions and how data moves through memory or registers.
+    Use decompilation, xrefs, and pointer dereferencing tools. 
+    You are expected to produce an accurate understanding of how this address influences program behavior.
+    """,
+
+    instructions = [
+        "Start from the address or function given to you.",
+        "Use `get_xrefs_from`, `decompile_function`, and `get_bytes_from_addr` to trace flow.",
+        "Follow all function calls and data pointers as far as necessary.",
+        "Record each step and the reason you took it.",
+        "Summarize all the endpoints and key data locations influenced by this address.",
+        "Stop only when there are no further leads to explore.",
+    ],
+
+
 ## I want you to assess your certainity in your conclusions 
 ## evaluate and ensure your claims before making any actions.
 
