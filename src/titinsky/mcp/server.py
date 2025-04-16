@@ -146,6 +146,7 @@ class MCPVisitor(ast.NodeVisitor):
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 IDA_PLUGIN_PY = os.path.join(SCRIPT_DIR, "mcp-plugin.py")
+IDA_PLUGIN_UTILS_PY = os.path.join(SCRIPT_DIR, "ida_memory.py")
 GENERATED_PY = os.path.join(SCRIPT_DIR, "server_generated.py")
 
 # NOTE: This is in the global scope on purpose
@@ -307,6 +308,7 @@ def install_ida_plugin(*, uninstall: bool = False, quiet: bool = False):
     else:
         ida_plugin_folder = os.path.join(os.path.expanduser("~"), ".idapro", "plugins")
     plugin_destination = os.path.join(ida_plugin_folder, "mcp-plugin.py")
+    ida_memory_destination = os.path.join(ida_plugin_folder, "ida_memory.py")
     if uninstall:
         if not os.path.exists(plugin_destination):
             print(f"Skipping IDA plugin uninstall\n  Path: {plugin_destination} (not found)")
@@ -332,8 +334,10 @@ def install_ida_plugin(*, uninstall: bool = False, quiet: bool = False):
             # Symlink or copy the plugin
             try:
                 os.symlink(IDA_PLUGIN_PY, plugin_destination)
+                os.symlink(IDA_PLUGIN_PY, ida_memory_destination)
             except OSError:
                 shutil.copy(IDA_PLUGIN_PY, plugin_destination)
+                shutil.copy(IDA_PLUGIN_UTILS_PY, ida_memory_destination)
 
             if not quiet:
                 print(f"Installed IDA Pro plugin (IDA restart required)\n  Plugin: {plugin_destination}")
