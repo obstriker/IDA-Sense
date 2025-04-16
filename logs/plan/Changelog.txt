@@ -3,6 +3,8 @@
 - With examples, the LLM able to investigate array of strings/pointers further
 - Agent is able to understand functionality of a function based on the usage of it (going up in call-graph) (with direct instruction).
 - Switched to mcp architecture
+- Added address explorer Workflow
+- Added Evaluator to address explorer
 
 
 #### Thoughts:
@@ -15,16 +17,39 @@
 - Should I gather some of the context beforehand? (usage, decompiled_code, call_graph etc..)
 - Agent doesn't validate it's assumptions, very bad.
 - Deconstruct simple tasks? (like understanding a memory blob: ptr, data, etc ..)
+- get_bytes will return defined data with names too, in a structure manner. (include all defined data within the range requested)
+- Add internal state validator (ex. enforce_pointer_trace), keep exploring until x
+- force specific format of output
+- ~~Explore_address exceeds max tokens, how is it possible? how to reduce tokens?~~
+- Retry mechanism (including evaluator and scorer)
+- Create orchestrator and let the LLM save all open ended research path (like pointers, xrefs, memory tc..)
+    and the orchestrator will see it as tasks and will give it to the right agent.
+    - Collect all pointers, xrefs, constants, 
+    - The evaluator asks if every one of them is covered, if he traced all pointers, xrefs etc..
+    - Create format of summary for the agent and then it will be eaiser for the evaluator to process.
+- Change address evaluator to score based?
+- Trace function: what does it even mean? what responsibilities does he have?
 
 #### Tasks:
-1. ~~Add call graph flow~~
 2. Test - Workflow with multiple prompts of techniques
-    1. fix: list exports, list_imports, 
+    1. ~~fix: list exports, list_imports~~
     2. reduce multiple functions for the same function (list_strings, search_strings, etc ..)
     3. inject get_memory_map
-    4. test get_call_graph
+    4. ~~test get_call_graph~~
     5. Prompt tuning
         1. Xref not analyzed properly
         2. Memory content need further analysis
-3. Give the agent access to api docs (webtool/knowledgebase)
+    6. ** add example for output (format) **
 4. Create roadmap + parallel strategies to research and test.
+5. ** Create preconfigured context (xref, call_graph, etc..) **
+    6. improve dd/dw/dq - add xrefs, data xrefs just like in ida
+    7. Collapse bytes when possible (until the next definition (string/pointer/etc..))
+    1. Add call graph flow
+6. ~~ Create workflow - add validator agent ~~
+    7. remove duplicating evaluator message (?)
+7. ask claude to help fine tune my prompts (evaluation + address explorer) with his own techniques.
+    7.1. Review Claude answer with gpt pro to improve my prompts
+
+
+#### Full binary
+3. Give the agent access to api docs (webtool/knowledgebase)

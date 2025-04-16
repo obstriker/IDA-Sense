@@ -1,0 +1,5 @@
+fastmcp
+openai
+agno
+langchain
+uv
