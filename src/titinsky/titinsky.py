@@ -10,25 +10,60 @@ import asyncio
 from dotenv import load_dotenv
 from agno.memory.db.sqlite import SqliteMemoryDb
 from agno.agent import Agent, AgentMemory
+import argparse
+from titinsky.workflows.address_explorer import run_address_workflow
+from titinsky.workflows.flow_tracer import run_flow_tracer_workflow
 
 load_dotenv()
 
-# TODO: Fix installation of plugin, make it easy and modular (maybe python -m titinsky --install)
+async def create_ida_agent(session, reasoning=False):
+    mcp_tools = MCPTools(session=session)
+    await mcp_tools.initialize()
+    return Agent(
+        model=OpenAIChat(id="gpt-4.1-mini"),
+        # model=Claude(id="claude-3-7-sonnet-20250219"),
+        description=address_explorer.description,
+        instructions=address_explorer.instructions,
+        tools=[mcp_tools, PythonTools(run_code=True)],
+        show_tool_calls=True,
+        reasoning=reasoning,
+        add_history_to_messages=True,
+        num_history_responses=3,
+        memory=AgentMemory(
+            db=SqliteMemoryDb(
+                table_name="agent_memory",
+                db_file="tmp.db",
+            ),
+            create_user_memories=True,
+        ),
+        debug_mode=True,
+        markdown=True
+    )
 
-async def create_ida_agent(session):
+async def create_validator_agent(session, reasoning=False):
     mcp_tools = MCPTools(session=session)
     await mcp_tools.initialize()
     return Agent(
         model=OpenAIChat(id="gpt-4o-mini"),
         # model=Claude(id="claude-3-7-sonnet-20250219"),
-        description=address_explorer.description,
-        instructions=address_explorer.instructions,
+        description=address_validator.description,
+        instructions=address_validator.instructions,
         tools=[mcp_tools, PythonTools(run_code=True)],
-        # show_tool_calls=True,
-        # reasoning=True,
+        show_tool_calls=True,
+        reasoning=reasoning,
+        add_history_to_messages=True,
+        num_history_responses=3,
+        memory=AgentMemory(
+            db=SqliteMemoryDb(
+                table_name="agent_memory",
+                db_file=AGENT_MEMORY_DB_FILE,
+            ),
+            create_user_memories=True,
+        ),
         # debug_mode=True,
-        markdown=True
+        markdown=True,
     )
+
 
 async def run_agent(message: str, reasoning=False) -> None:
     """Run the filesystem agent with the given message."""
@@ -45,28 +80,28 @@ async def run_agent(message: str, reasoning=False) -> None:
     # Create a client session to connect to the MCP server
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
-            agent = await create_ida_agent(session)
+            agent = await create_ida_agent(session, reasoning=reasoning)
 
             # Run the agent
             await agent.aprint_response(message, stream=True)
+            # await agent.aprint_response("the name you suggested doesn't relate to the context enough, try deepning your research", stream=True)
             # await agent.cli_app()
 
 async def test_address_explore(address, reasoning=False):
-    # asyncio.run(run_agent(f"Explore the following address {address}", reasoning=reasoning))
-    from titinsky.workflows.address_explorer import run_address_workflow
     await run_address_workflow(address)
 
 def test_function_explore(address, reasoning=False):
     asyncio.run(run_agent(f"Explore the following function {address}", reasoning=reasoning))
 
 def test_trace_function(address, reasoning=False):
-    asyncio.run(run_agent(f"Trace the following function {address}", reasoning=reasoning))
+    # asyncio.run(run_agent(f"Trace the following function {address}", reasoning=reasoning))
+    asyncio.run(run_flow_tracer_workflow(address))
 
 def test_trace_address(address, reasoning=False):
     asyncio.run(run_agent(f"Trace the following data address {address}", reasoning=reasoning))
 
-
-import argparse
+    # Query examples:
+    #   - Check where this flow can lead to
 
 def main():
     parser = argparse.ArgumentParser(description="Titinsky Command Line Interface")

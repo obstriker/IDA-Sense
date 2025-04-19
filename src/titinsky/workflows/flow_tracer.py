@@ -14,8 +14,8 @@ import asyncio
 from agno.models.anthropic import Claude
 
 MAX_RETRIES = 1
-MAX_EXECUTION_STEPS = 2
-MAX_EVALUATION_STEPS = 1
+MAX_EXECUTION_STEPS = 1
+MAX_EVALUATION_STEPS = 3
 
 class ida_flow_tracer(Workflow):
     # def create_agents(self, mcp_tools):
@@ -23,11 +23,6 @@ class ida_flow_tracer(Workflow):
                 model=OpenAIChat(id="gpt-4.1-mini"),
                 description = flow_tracer.description,
                 instructions = flow_tracer.instructions,
-                # expected_output=address_explorer.expected_output,
-                # reasoning=True,
-                # tools=[mcp_tools],
-                # exponential_backoff=True,
-                # add_transfer_instructions=True,
                 show_tool_calls=True,
                 add_history_to_messages=True,
                 num_history_responses=5,
@@ -82,39 +77,6 @@ class ida_flow_tracer(Workflow):
             print("⏹️ Max iterations reached. Halting exploration.")
 
 
-    async def evaluate_trace(self, agent, max_iterations=MAX_EVALUATION_STEPS):
-        """
-        Evaluate the trace results and iterate until the task is complete.
-        """
-        step = 0
-        done = False
-        
-        while not done and step < max_iterations:
-            print(f"\n📊 Evaluation iteration {step + 1} of {max_iterations}")
-            
-            # Ask the agent to evaluate its findings and identify any gaps
-            eval_prompt = "Evaluate your current findings. Have you identified all possible paths? Are there any gaps in your analysis? What additional information would help complete the trace?"
-            response = await agent.aprint_response(eval_prompt)
-            
-            # Check if the evaluation indicates completion
-            response_content = agent.get_run_messages().messages[-1].content.lower()
-            if "analysis complete" in response_content or "trace complete" in response_content:
-                print("✅ Trace evaluation complete")
-                done = True
-                break
-                
-            # If not complete, continue with additional exploration
-            if not done and step < max_iterations - 1:
-                await self.execute_next_steps(agent, 1)
-                
-            step += 1
-            
-        if not done:
-            print("⏹️ Max evaluation iterations reached. Finalizing trace.")
-            
-        # Final summary
-        await agent.aprint_response("Provide a final summary of all paths/sinks you've identified.")
-        
     async def run_trace(
     self,
     address: Optional[str] = None,
@@ -122,12 +84,26 @@ class ida_flow_tracer(Workflow):
 ) -> RunResponse:
         # result = await self.flow_tracer.arun(prompt)
         result = await self.flow_tracer.aprint_response(prompt)
-        execute_next_steps = await self.execute_next_steps(self.flow_tracer, MAX_EXECUTION_STEPS)
-        await self.evaluate_trace(self.flow_tracer)
+        # execute_next_steps = await self.execute_next_steps(self.flow_tracer, MAX_EXECUTION_STEPS)
         return result
 
     async def trace_function(self, address):
         res = await self.run_trace(prompt=f"Find all the paths/sinks that lead this function: {address}")
         return res
+    
+async def run_flow_tracer_workflow(address: str) -> RunResponse:
+    server_params = StdioServerParameters(
+        command="uv",
+        args=["run", "python", "-m", "titinsky.mcp.server"],
+    )
 
-
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            workflow = ida_flow_tracer()
+            await workflow.initialize(session)
+            prompt = "Does any attack-controlled packet ever reach strcpy? Generate techniques to find packet handling" \
+                        "While analyzing maintain a table of the flow from src to sink."
+            prompt = "Find packet handling and find if attacker-controlled buffer of packet can reach strcpy"
+            result = await workflow.run_trace(prompt=prompt)
+            # result = await workflow.trace_function(address)
+            # session.close()

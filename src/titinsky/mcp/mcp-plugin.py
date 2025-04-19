@@ -976,6 +976,29 @@ class Xref(TypedDict):
     type: str
     function: Optional[Function]
 
+def _get_xrefs_to(
+    address: Annotated[str, "Address to get cross references to"]
+) -> list[Xref]:
+    """
+    Gets all cross-references to the specified address (including data addresses) (hex address in string, example: "0x12345678").
+    
+    Args:
+        address (int): The target address to find references to
+        
+    Returns:
+        list[int]: A list of addresses that reference the target address
+    """
+    xrefs = []
+    xref: ida_xref.xrefblk_t
+    for xref in idautils.XrefsTo(parse_address(address)):
+        xrefs.append({
+            "address": hex(xref.frm),
+            "type": "code" if xref.iscode else "data",
+            "function": get_function(xref.frm, raise_error=False),
+        })
+    return xrefs
+
+
 @jsonrpc
 @idaread
 def get_xrefs_to(
@@ -1023,7 +1046,7 @@ def get_entry_points(
     return paginate(result, offset, count)
 
 
-def get_call_graph(
+def _get_call_graph(
     func_ea: Annotated[str, "Hexadecimal address of the target function"],
     visited: Annotated[Optional[set], "Set of already visited function addresses"] = None,
     depth: Annotated[int, "Current recursion depth"] = 0,
@@ -1049,20 +1072,32 @@ def get_call_graph(
 
     if func_ea in visited or depth >= max_depth:
         return []
-    visited.add(func_ea)
+    visited.add(hex(func_ea))
 
     callers = []
-    for xref in idautils.CodeRefsTo(func_ea, 0):
+    for xref in _get_xrefs_to(hex(func_ea)):
         try:
-            func = idaapi.get_func(xref)
+            func = parse_address(xref["address"])
+            func = idaapi.get_func(func)
             if func and func.start_ea not in visited:
-                callers.append({"addr": hex(xref), "name": idc.get_func_name(xref)})
-                next_graph = get_call_graph(func.start_ea, visited, depth+1, max_depth)
+                callers.append({"addr": hex(func.start_ea), "name": idc.get_func_name(func.start_ea)})
+                next_graph = _get_call_graph(hex(func.start_ea), visited, depth+1, max_depth)
                 callers += json.loads(next_graph)["result"]
         except:
             continue
 
     return json.dumps({"operation": "get_call_graph", "result": callers})
+
+
+@jsonrpc
+@idawrite
+def get_call_graph(
+    func_ea: Annotated[str, "Hexadecimal address of the target function"],
+    visited: Annotated[Optional[set], "Set of already visited function addresses"] = None,
+    depth: Annotated[int, "Current recursion depth"] = 0,
+    max_depth: Annotated[int, "Maximum recursion depth to prevent infinite loops"] = 5
+) -> str:
+    return _get_call_graph(func_ea, visited, depth, max_depth)
 
 @jsonrpc
 @idawrite
