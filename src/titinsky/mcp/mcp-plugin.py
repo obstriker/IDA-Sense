@@ -712,7 +712,6 @@ def list_imports(
         imports.append({
             "ea": hex(ea),
             "name": name,
-            # "ordinal": ord
         })
         return True
 
@@ -824,7 +823,7 @@ def search_functions_by_name(pattern: str) -> str:
     Search all function names for a given substring.
 
     Args:
-        pattern (str): Substring to search for in function names
+        pattern (str): Substring to search for in function names (regex supported)
 
     Returns:
         str: JSON list of function names and addresses matching the pattern
@@ -1023,13 +1022,12 @@ def get_entry_points(
 
     return paginate(result, offset, count)
 
-@jsonrpc
-@idaread
+
 def get_call_graph(
     func_ea: Annotated[str, "Hexadecimal address of the target function"],
     visited: Annotated[Optional[set], "Set of already visited function addresses"] = None,
     depth: Annotated[int, "Current recursion depth"] = 0,
-    max_depth: Annotated[int, "Maximum recursion depth to prevent infinite loops"] = 10
+    max_depth: Annotated[int, "Maximum recursion depth to prevent infinite loops"] = 5
 ) -> str:
     """
     Retrieve function call graph from root functions to a given function with depth limitation.
@@ -1055,14 +1053,61 @@ def get_call_graph(
 
     callers = []
     for xref in idautils.CodeRefsTo(func_ea, 0):
-        func = idaapi.get_func(xref)
-        if func and func.start_ea not in visited:
-            callers.append({"addr": hex(xref), "name": idc.get_func_name(xref)})
-
-            next_graph = get_call_graph(func.start_ea, visited, depth+1, max_depth)
-            callers += json.loads(next_graph)["result"]
+        try:
+            func = idaapi.get_func(xref)
+            if func and func.start_ea not in visited:
+                callers.append({"addr": hex(xref), "name": idc.get_func_name(xref)})
+                next_graph = get_call_graph(func.start_ea, visited, depth+1, max_depth)
+                callers += json.loads(next_graph)["result"]
+        except:
+            continue
 
     return json.dumps({"operation": "get_call_graph", "result": callers})
+
+@jsonrpc
+@idawrite
+def color_function(
+    func_ea: Annotated[str, "Hex address of the function"],
+    color: Annotated[str, "Hex RGB color (e.g. 0xFFAA00)"] = "0xAAFFAA"
+) -> str:
+    """
+    Color all instructions in a given function.
+    """
+    try:
+        func_ea = int(func_ea, 16)
+        rgb_color = int(color, 16)
+
+        func = idaapi.get_func(func_ea)
+        if not func:
+            return json.dumps({"error": "Invalid function address"})
+
+        ea = func.start_ea
+        while ea < func.end_ea:
+            idaapi.set_item_color(ea, rgb_color)
+            ea = idc.next_head(ea)
+
+        return json.dumps({"status": "colored", "function": hex(func_ea), "color": color})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@jsonrpc
+@idawrite
+def reset_colored_functions() -> str:
+    """
+    Reset all custom colors in all functions.
+    """
+    count = 0
+
+    for func in idautils.Functions():
+        ea = func
+        end = idc.get_func_attr(ea, idc.FUNCATTR_END)
+        while ea < end:
+            if idaapi.get_item_color(ea) != 0xFFFFFFFF:
+                idaapi.set_item_color(ea, 0xFFFFFFFF)
+                count += 1
+            ea = idc.next_head(ea)
+
+    return json.dumps({"status": "reset", "instructions_cleared": count})
 
 @jsonrpc
 @idawrite

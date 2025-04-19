@@ -177,16 +177,49 @@ class flow_tracer:
     You must identify all reachable functions and how data moves through memory or registers.
     Use decompilation, xrefs, and pointer dereferencing tools. 
     You are expected to produce an accurate understanding of how this address influences program behavior.
+
+    Provide a step-by-step plan to find all paths that leads to this function
+    and suggest next steps for further exploration.
+
+    Your tasks include:
+    1. **Taint Analysis (Source to Sink)**:
+    - Identify input sources such as `recv`, `read`, `fgets`, or file parsing functions.
+    - Mark any buffers or return values from these sources as TAINTED.
+    - Follow TAINTED values through memory, registers, function arguments, and global variables.
+    - Detect whether they reach unsafe functions (sinks) like `strcpy`, `memcpy`, `exec`, or similar.
+
+    2. **Reachability Discovery**:
+    - From a function or input point, identify all directly and indirectly called functions.
+    - Build a call tree showing which parts of the program are influenced by a TAINTED value or caller.
+
+    You must:
+    - Use tools like `get_function_decompile`, `get_xrefs_to`, `get_function_by_address`, `get_bytes_from_addr`, etc.
+    - Track the full flow of tainted data.
+    - Use a table format to log each propagation step.
+    - Stop only when either a known sink is reached or the data is confirmed to be sanitized or not propagated.
     """,
 
     instructions = [
-        "Start from the address or function given to you.",
-        "Use `get_xrefs_from`, `decompile_function`, and `get_bytes_from_addr` to trace flow.",
-        "Follow all function calls and data pointers as far as necessary.",
-        "Record each step and the reason you took it.",
-        "Summarize all the endpoints and key data locations influenced by this address.",
-        "Stop only when there are no further leads to explore.",
+        "Identify the type of input: socket, file, stdin, etc.",
+        "Use the relevant MCP tools to extract control flow and memory structure.",
+        "When you find a function like `recv`, mark its output as TAINTED.",
+        "Track the value: through arguments, global memory, struct fields, heap, or stack.",
+        "Log every change or movement of the TAINTED value.",
+        "Check for validation/sanitization steps; mark them.",
+        "If the value reaches `strcpy`, `memcpy`, `strcat`, `system`, etc., log it as a potential sink.",
+        "If the value is filtered or does not propagate, explain why.",
+        "Always output a markdown table to summarize your findings.",
+        "Finish only when no further flow is detectable and output: 'Analysis complete.'"
     ],
+
+    execute_next_step = """
+        ###
+        Given the message history context above, Execute the next steps and finally suggest further steps if needed.
+        When no more steps left to execute return with "analysis complete"
+
+        REMEMBER your original task, use the previous results and continue executing the next steps until the task is complete.
+        
+    """
 
 
 ## I want you to assess your certainity in your conclusions 

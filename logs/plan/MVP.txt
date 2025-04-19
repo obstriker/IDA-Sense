@@ -57,7 +57,24 @@ Full binary:
 Features:
 9. Read cves and try to match them or their patch in the binary
 10. infer symbols from source code
+11. match source code to binary
 
 Similar ideas:
 1. RAG Docs
 2. Codeql for decompiled code. indexing decompiled code.
+
+
+MultiAgents:
+1. Flow tracer
+    1.  Trace from Source to Sink - “Does input from socket ever reach strcpy?”
+    2.  Trace Callers or Paths to a Function -  “Show me all call paths leading to decrypt_buffer()”
+    3. Taint Analysis / Data Provenance -  “Track all changes to arg_4 in function X and any aliases in callees.”
+    4. Forward Reachability Analysis (Coloring) -  “Which functions can be reached directly or indirectly from network-facing code?” 
+        (color all reachable code)
+    5. Track the Lifetime of an Argument / Variable - “Trace the lifetime of a1 from entry to exit.”
+    6. Trace vtables or function pointer tables to see where dynamic calls may go.
+    7. Trace Field Usage in Structs
+
+    Examples:
+    1. “Are the inputs to do_important_thing() ever attacker-controlled?”
+    2. Analyze how a pointer gets dereferenced and whether it could be attacker-controlled.

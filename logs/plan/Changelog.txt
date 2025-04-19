@@ -30,6 +30,12 @@
 - Change address evaluator to score based?
 - Trace function: what does it even mean? what responsibilities does he have?
 
+Flow tracer:
+- Summarize history (to save tokens and keep iterating)
+- Iterate while saving context
+- Create plan, break it to tasks and go through one by one
+- Iterate doing next steps
+
 #### Tasks:
 2. Test - Workflow with multiple prompts of techniques
     1. ~~fix: list exports, list_imports~~

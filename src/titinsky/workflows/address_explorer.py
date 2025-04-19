@@ -22,7 +22,7 @@ MAX_EVALUATION_STEPS = 1
 class ida_reflective_explorer(Workflow):
     # def create_agents(self, mcp_tools):
     explorer: Agent = Agent(
-                model=OpenAIChat(id="gpt-4o-mini"),
+                model=OpenAIChat(id="gpt-4.1-mini"),
                 # model=Claude(id="claude-3-7-sonnet-20250219"),
                 description=address_explorer.description,
                 instructions=address_explorer.instructions,
@@ -46,7 +46,7 @@ class ida_reflective_explorer(Workflow):
             )
 
     validator: Agent = Agent(
-                model=OpenAIChat(id="gpt-4o-mini"),
+                model=OpenAIChat(id="gpt-4.1-mini"),
                 # model=Claude(id="claude-3-7-sonnet-20250219"),
                 description=address_validator.description,
                 instructions=address_validator.instructions,
@@ -177,7 +177,7 @@ class ida_reflective_explorer(Workflow):
             
             if "FAIL" in validation_output.content:
                 print("❌ Validation failed. Rerunning exploration with feedback...")
-                validated_last_message = await validated.arun(
+                validated_last_message = await validated.aprint_response(
                     f"The validation failed with the following feedback:\n{validation_output.content}\n\n"
                     f"Please improve your analysis of address {address} accordingly."
                 )
