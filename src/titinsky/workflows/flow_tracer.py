@@ -95,19 +95,3 @@ class ida_flow_tracer(Workflow):
     async def trace_function(self, address):
         res = await self.run_trace(prompt=f"Find all the paths/sinks that lead this function: {address}")
         return res
-    
-async def run_flow_tracer_workflow(address: str) -> RunResponse:
-    server_params = StdioServerParameters(
-        command="uv",
-        args=["run", "python", "-m", "titinsky.mcp.server"],
-    )
-
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            workflow = ida_flow_tracer()
-            await workflow.initialize(session)
-            prompt = "Does input from socket ever reach strcpy?" \
-                        "While analyzing maintain a table of the flow from input to output."
-            result = await workflow.run_trace(prompt)
-            # result = await workflow.trace_function(address)
-            # session.close()
