@@ -82,6 +82,39 @@ class ida_flow_tracer(Workflow):
             print("⏹️ Max iterations reached. Halting exploration.")
 
 
+    async def evaluate_trace(self, agent, max_iterations=MAX_EVALUATION_STEPS):
+        """
+        Evaluate the trace results and iterate until the task is complete.
+        """
+        step = 0
+        done = False
+        
+        while not done and step < max_iterations:
+            print(f"\n📊 Evaluation iteration {step + 1} of {max_iterations}")
+            
+            # Ask the agent to evaluate its findings and identify any gaps
+            eval_prompt = "Evaluate your current findings. Have you identified all possible paths? Are there any gaps in your analysis? What additional information would help complete the trace?"
+            response = await agent.aprint_response(eval_prompt)
+            
+            # Check if the evaluation indicates completion
+            response_content = agent.get_run_messages().messages[-1].content.lower()
+            if "analysis complete" in response_content or "trace complete" in response_content:
+                print("✅ Trace evaluation complete")
+                done = True
+                break
+                
+            # If not complete, continue with additional exploration
+            if not done and step < max_iterations - 1:
+                await self.execute_next_steps(agent, 1)
+                
+            step += 1
+            
+        if not done:
+            print("⏹️ Max evaluation iterations reached. Finalizing trace.")
+            
+        # Final summary
+        await agent.aprint_response("Provide a final summary of all paths/sinks you've identified.")
+        
     async def run_trace(
     self,
     address: Optional[str] = None,
@@ -90,9 +123,9 @@ class ida_flow_tracer(Workflow):
         # result = await self.flow_tracer.arun(prompt)
         result = await self.flow_tracer.aprint_response(prompt)
         execute_next_steps = await self.execute_next_steps(self.flow_tracer, MAX_EXECUTION_STEPS)
+        await self.evaluate_trace(self.flow_tracer)
         return result
 
-    # implement evaluation step and iterate until task is complete. AI!
     async def trace_function(self, address):
         res = await self.run_trace(prompt=f"Find all the paths/sinks that lead this function: {address}")
         return res
